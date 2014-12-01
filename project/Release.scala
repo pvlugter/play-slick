@@ -16,11 +16,11 @@ object Release {
       runTest,
       runTestIn("docs"),
       runTestIn("samples"),
-      setReleaseVersion,
+      setBuildReleaseVersion,
       commitReleaseVersion,
       tagRelease,
       publishArtifacts,
-      setNextVersion,
+      setBuildNextVersion,
       commitNextVersion,
       pushChanges
     )
@@ -36,4 +36,24 @@ object Release {
     },
     enableCrossBuild = true
   )
+
+  lazy val setBuildReleaseVersion: ReleaseStep = setBuildVersion(_._1)
+  lazy val setBuildNextVersion: ReleaseStep = setBuildVersion(_._2)
+
+  def setBuildVersion(selectVersion: Versions => String): ReleaseStep = { state: State =>
+    val versions = state.get(ReleaseKeys.versions).getOrElse(sys.error("No versions are set! Was this release part executed before inquireVersions?"))
+    val selected = selectVersion(versions)
+    state.log.info(s"Building against play ${Version.play}")
+    state.log.info(s"Setting version to '$selected'")
+    writeBuildConf(selected, Version.play)
+    reapply(Seq(version := selected), state)
+  }
+
+  def writeBuildConf(version: String, playVersion: String) {
+    val versions =
+      s"""|project.version = $version
+          |play.version = $playVersion
+      """.stripMargin
+    IO.write(file("build.conf"), versions)
+  }
 }
