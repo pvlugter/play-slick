@@ -9,6 +9,8 @@ object Release {
   lazy val settings = releaseSettings ++ Seq(
     ReleaseKeys.crossBuild := true,
     ReleaseKeys.publishArtifactsAction := PgpKeys.publishSigned.value,
+    ReleaseKeys.releaseVersion := selectReleaseVersion.value,
+    ReleaseKeys.nextVersion := selectNextVersion.value,
     ReleaseKeys.releaseProcess := Seq[ReleaseStep](
       checkSnapshotDependencies,
       inquireVersions,
@@ -36,6 +38,18 @@ object Release {
     },
     enableCrossBuild = true
   )
+
+  // use any non-snapshot version directly
+  def selectReleaseVersion = Def.setting {
+    val default = ReleaseKeys.releaseVersion.value
+    (v: String) => { if (v endsWith "-SNAPSHOT") default(v) else v }
+  }
+
+  // don't bump the version for qualified releases, like milestones and release candidates
+  def selectNextVersion = Def.setting {
+    val default = ReleaseKeys.nextVersion.value
+    (v: String) => { sbtrelease.Version(v).filter(_.qualifier.isDefined).fold(default(v))(_.asSnapshot.string) }
+  }
 
   lazy val setBuildReleaseVersion: ReleaseStep = setBuildVersion(_._1)
   lazy val setBuildNextVersion: ReleaseStep = setBuildVersion(_._2)
